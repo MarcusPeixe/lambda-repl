@@ -68,22 +68,22 @@ impl<'src> TokenStream<'src> {
     {
         let source = &self.source[start..];
         let possible_symbols = [
-            ("λ", 1, TokenType::Lambda),
-            ("\\", 1, TokenType::Lambda),
-            ("*", 1, TokenType::Mul),
-            ("/", 1, TokenType::Div),
-            ("+", 1, TokenType::Add),
             ("(", 1, TokenType::LPar),
             (")", 1, TokenType::RPar),
+            ("\\", 1, TokenType::Lambda),
+            ("λ", 1, TokenType::Lambda),
             (".", 1, TokenType::Dot),
-            ("&&", 2, TokenType::And),
-            ("||", 2, TokenType::Or),
-            ("!=", 2, TokenType::Neq),
-            ("!", 1, TokenType::Not),
+            ("->", 2, TokenType::Dot),
             ("==", 2, TokenType::Eq),
             ("=", 1, TokenType::Assign),
-            ("->", 2, TokenType::Dot),
+            ("+", 1, TokenType::Add),
             ("-", 1, TokenType::Sub),
+            ("*", 1, TokenType::Mul),
+            ("/", 1, TokenType::Div),
+            ("!=", 2, TokenType::Neq),
+            ("!", 1, TokenType::Not),
+            ("&&", 2, TokenType::And),
+            ("||", 2, TokenType::Or),
         ];
         for (symbol, size, token_type) in possible_symbols {
             if source.starts_with(symbol) {
@@ -127,9 +127,9 @@ impl<'src> TokenStream<'src> {
         while let (index, Some(ch)) = self.peek() {
             match ch {
                 ch if "λ\\*/+().&|!-=".contains(ch) => self.push_symbol(index)?,
-                ch if ch.is_numeric() => self.push_number(index)?,
-                ch if ch.is_alphabetic() => self.push_variable(index),
                 ch if ch.is_whitespace() => self.skip_whitespace(),
+                ch if ch.is_alphabetic() => self.push_variable(index),
+                ch if ch.is_numeric() => self.push_number(index)?,
                 _ => return Err(self.invalid_symbol(index)),
             }
         }
