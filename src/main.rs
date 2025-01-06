@@ -13,11 +13,23 @@ enum AST<'a> {
 
 fn main() {
     // let source = "(\\x.\\y.x) a b";
-    let source = "(λx1.λx2.x1) a b1b";
-    let tokens = lexer::tokenise(source).unwrap();
-    println!("Tokens:");
-    for token in tokens {
-        println!("- {token}");
-    }
+    let source = "(λx1.λx2.x1) a $ b1b";
+    // let tokens = lexer::tokenise(source).unwrap();
+    // println!("Tokens:");
+    // for token in tokens {
+    //     println!("- {token}");
+    // }
+    let tokens = lexer::tokenise(source);
+    match tokens {
+        Ok(tokens) => {
+            println!("Tokens:");
+            for token in tokens {
+                println!("- {token}");
+            }
+        }
+        Err(error) => {
+            dbg!(error);
+        }
+    };
 }
 
