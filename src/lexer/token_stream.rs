@@ -112,9 +112,7 @@ impl<'src> TokenStream<'src> {
         let span = Span::new(self.source, start, end);
         let number = match span.get_text(self.source).parse() {
             Ok(number) => number,
-            Err(error) => {
-                return Err(LexerError::invalid_number(self.source, span, error));
-            }
+            Err(error) => return Err(LexerError::invalid_number(self.source, span, error)),
         };
         self.tokens.push(Token::new(TokenType::Num(number), span));
         Ok(())
