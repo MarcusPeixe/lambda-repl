@@ -1,31 +1,23 @@
-enum ASTNode<'a> {
+mod lexer;
+
+enum AST<'a> {
     Var(&'a str),
     Num(u64),
-    App(Box<ASTNode<'a>>, Box<ASTNode<'a>>),
-    Mul(Box<ASTNode<'a>>, Box<ASTNode<'a>>),
-    Div(Box<ASTNode<'a>>, Box<ASTNode<'a>>),
-    Add(Box<ASTNode<'a>>, Box<ASTNode<'a>>),
-    Sub(Box<ASTNode<'a>>, Box<ASTNode<'a>>),
-    Abs(&'a str, Box<ASTNode<'a>>),
+    App(Box<AST<'a>>, Box<AST<'a>>),
+    Mul(Box<AST<'a>>, Box<AST<'a>>),
+    Div(Box<AST<'a>>, Box<AST<'a>>),
+    Add(Box<AST<'a>>, Box<AST<'a>>),
+    Sub(Box<AST<'a>>, Box<AST<'a>>),
+    Abs(&'a str, Box<AST<'a>>),
 }
-
-type ParserInput<'a> = std::iter::Peekable<std::str::Chars<'a>>;
-
-struct ParserError<'a>(&'a str, String);
-
-type ParserResult<'a, T> = Result<(T, ParserInput<'a>), ParserError<'a>>;
-
-fn parse_whitespace(mut input: ParserInput) -> ParserResult<()> {
-    while let Some(&ch) = input.peek() {
-        if !ch.is_whitespace() {
-            break;
-        }
-    }
-    Ok(((), input))
-}
-
-// fn parse_identifier(mut input: ParserInput) -> ParserResult<>
 
 fn main() {
-    println!("Hello, world!");
+    // let source = "(\\x.\\y.x) a b";
+    let source = "(λx1.λx2.x1) a b1b";
+    let tokens = lexer::tokenise(source).unwrap();
+    println!("Tokens:");
+    for token in tokens {
+        println!("- {token}");
+    }
 }
+
