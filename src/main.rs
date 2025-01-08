@@ -1,4 +1,5 @@
 mod lexer;
+mod source;
 
 enum AST<'a> {
     Var(&'a str),
@@ -12,14 +13,15 @@ enum AST<'a> {
 }
 
 fn main() {
-    // let source = "(\\x.\\y.x) a b";
-    let source = "(λx1.λx2.x1) a $ b1b";
+    // let code = "(\\x.\\y.x) a b";
+    let code = "(λx1.λx2.x1) a $ b1b";
+    let source = source::Source::new(code.to_owned());
     // let tokens = lexer::tokenise(source).unwrap();
     // println!("Tokens:");
     // for token in tokens {
     //     println!("- {token}");
     // }
-    let tokens = lexer::tokenise(source);
+    let tokens = lexer::tokenise(&source);
     match tokens {
         Ok(tokens) => {
             println!("Tokens:");
