@@ -1,3 +1,5 @@
+use super::*;
+
 #[derive(Debug)]
 pub enum TokenType<'src> {
     Var(&'src str),
@@ -18,7 +20,7 @@ pub enum TokenType<'src> {
     RPar,
 }
 
-impl<'src> std::fmt::Display for TokenType<'src> {
+impl std::fmt::Display for TokenType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TokenType::Var(name) => write!(f, "Var({name})"),
@@ -41,37 +43,9 @@ impl<'src> std::fmt::Display for TokenType<'src> {
     }
 }
 
-#[derive(Debug)]
-pub struct Span<'src> {
-    start: usize,
-    end: usize,
-    source: std::marker::PhantomData<&'src str>,
-}
-
-impl<'src> std::fmt::Display for Span<'src> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{}..{}>", self.start, self.end)
-    }
-}
-
-impl<'src> Span<'src> {
-    pub fn new(_source: &'src str, start: usize, end: usize) -> Self {
-        Self {
-            start,
-            end,
-            source: std::marker::PhantomData::<&'src str>,
-        }
-    }
-
-    pub fn get_text(&self, source: &'src str) -> &'src str {
-        &source[self.start..self.end]
-    }
-}
-
-#[derive(Debug)]
 pub struct Token<'src> {
-    token_type: TokenType<'src>,
-    span: Span<'src>,
+    pub token_type: TokenType<'src>,
+    pub span: Span<'src>,
 }
 
 impl<'src> Token<'src> {
@@ -80,9 +54,8 @@ impl<'src> Token<'src> {
     }
 }
 
-impl<'src> std::fmt::Display for Token<'src> {
+impl std::fmt::Debug for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", self.token_type, self.span)
+        write!(f, "<{}, {:?}>", self.token_type, self.span)
     }
 }
-
