@@ -1,15 +1,18 @@
 mod lexer_error;
+mod span;
 mod token;
-mod token_stream;
+mod token_vec;
 
 use crate::source;
 
 use lexer_error::*;
-use token_stream::*;
+use token_vec::*;
 
 pub use lexer_error::LexerError;
-pub use token::{Span, Token, TokenType};
+pub use span::Span;
+pub use token::{Token, TokenType};
+pub use token_vec::TokenVec;
 
-pub fn tokenise(source: &source::Source) -> LexerResult<Vec<Token>> {
-    TokenStream::new(&source.text).tokenise()
+pub fn tokenise(source: &source::Source) -> LexerResult<TokenVec> {
+    TokenStream::new(source).tokenise()
 }
