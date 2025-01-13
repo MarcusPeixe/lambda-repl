@@ -127,10 +127,6 @@ impl<'src> TokenStream<'src> {
     {
         let end = self.consume_while(char::is_alphanumeric);
         let span = Span::new(&self.tokens.source.text, start, end);
-        // let Ok(number) = span.get_text(&self.tokens.source.text).parse() else {
-        //     self.invalid_number(span);
-        //     return;
-        // };
         let number = match span.get_text(&self.tokens.source.text).parse() {
             Ok(number) => number,
             Err(error) => {
@@ -173,8 +169,3 @@ pub struct TokenVec<'t> {
     pub tokens: Vec<Token<'t>>,
 }
 
-// impl<'t> TokenVec<'t> {
-//     pub fn iter(&'t self) -> impl Iterator<Item = &Token<'t>> {
-//         self.tokens.iter()
-//     }
-// }
