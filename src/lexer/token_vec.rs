@@ -4,7 +4,7 @@ type LexerInput<'src> = std::iter::Peekable<std::str::CharIndices<'src>>;
 
 pub struct TokenStream<'src> {
     iter: LexerInput<'src>,
-    tokens: TokenVec<'src>,
+    token_vec: TokenVec<'src>,
     errors: Vec<LexerError<'src>>,
 }
 
@@ -12,7 +12,7 @@ impl<'src> TokenStream<'src> {
     pub fn new(source: &'src source::Source) -> Self {
         Self {
             iter: source.text.char_indices().peekable(),
-            tokens: TokenVec {
+            token_vec: TokenVec {
                 source,
                 tokens: Vec::new(),
             },
@@ -24,7 +24,7 @@ impl<'src> TokenStream<'src> {
         self.iter
             .peek()
             .map(|&(idx, ch)| (idx, Some(ch)))
-            .unwrap_or((self.tokens.source.text.len(), None))
+            .unwrap_or((self.token_vec.source.text.len(), None))
     }
 
     fn next(&mut self) {
@@ -39,7 +39,7 @@ impl<'src> TokenStream<'src> {
 
     fn skip_whitespace(&mut self) {
         while let (_idx, Some(char)) = self.peek() {
-            if !char.is_whitespace() {
+            if !char.is_whitespace() && char != '\n' {
                 break;
             }
             self.next();
@@ -64,24 +64,30 @@ impl<'src> TokenStream<'src> {
             self.next();
         }
         let end = self.peek().0;
-        let span = Span::new(&self.tokens.source.text, start, end);
+        let span = Span::new(&self.token_vec.source.text, start, end);
         self.errors
-            .push(LexerError::invalid_token(self.tokens.source, span));
+            .push(LexerError::invalid_token(self.token_vec.source, span));
     }
 
     fn invalid_number(&mut self, span: Span<'src>, error: std::num::ParseIntError) {
         self.errors.push(LexerError::invalid_number(
-            self.tokens.source,
+            self.token_vec.source,
             span,
             &error.to_string(),
         ));
     }
 
-    fn push_symbol<'orig>(&mut self, start: usize)
-    where
-        'src: 'orig,
-    {
-        let source = &self.tokens.source.text[start..];
+    fn push_comment(&mut self, start: usize) {
+        let end = self.consume_while(|c| c != '\n');
+        let span = Span::new(&self.token_vec.source.text, start, end);
+        let text = span.get_text(&self.token_vec.source.text);
+        self.token_vec
+            .tokens
+            .push(Token::new(TokenType::Comment(text), span));
+    }
+
+    fn push_symbol(&mut self, start: usize) {
+        let source = &self.token_vec.source.text[start..];
         let possible_symbols = [
             ("(", 1, TokenType::LPar),
             (")", 1, TokenType::RPar),
@@ -99,12 +105,19 @@ impl<'src> TokenStream<'src> {
             ("!", 1, TokenType::Not),
             ("&&", 2, TokenType::And),
             ("||", 2, TokenType::Or),
+            ("\r\n", 1, TokenType::Eol),
+            ("\n", 1, TokenType::Eol),
+            ("\r", 1, TokenType::Eol),
         ];
+        if source.starts_with("//") {
+            self.push_comment(start);
+            return;
+        }
         for (symbol, size, token_type) in possible_symbols {
             if source.starts_with(symbol) {
                 let end = start + symbol.len();
-                let span = Span::new(&self.tokens.source.text, start, end);
-                self.tokens.tokens.push(Token::new(token_type, span));
+                let span = Span::new(&self.token_vec.source.text, start, end);
+                self.token_vec.tokens.push(Token::new(token_type, span));
                 self.skip(size);
                 return;
             }
@@ -114,27 +127,24 @@ impl<'src> TokenStream<'src> {
 
     fn push_variable(&mut self, start: usize) {
         let end = self.consume_while(|c| c.is_alphanumeric() || c == '_');
-        let span = Span::new(&self.tokens.source.text, start, end);
-        let var_name = span.get_text(&self.tokens.source.text);
-        self.tokens
+        let span = Span::new(&self.token_vec.source.text, start, end);
+        let var_name = span.get_text(&self.token_vec.source.text);
+        self.token_vec
             .tokens
-            .push(Token::new(TokenType::Var(var_name), span));
+            .push(Token::new(TokenType::Ident(var_name), span));
     }
 
-    fn push_number<'orig>(&mut self, start: usize)
-    where
-        'src: 'orig,
-    {
+    fn push_number(&mut self, start: usize) {
         let end = self.consume_while(char::is_alphanumeric);
-        let span = Span::new(&self.tokens.source.text, start, end);
-        let number = match span.get_text(&self.tokens.source.text).parse() {
+        let span = Span::new(&self.token_vec.source.text, start, end);
+        let number = match span.get_text(&self.token_vec.source.text).parse() {
             Ok(number) => number,
             Err(error) => {
                 self.invalid_number(span, error);
                 return;
             }
         };
-        self.tokens
+        self.token_vec
             .tokens
             .push(Token::new(TokenType::Num(number), span));
     }
@@ -145,7 +155,7 @@ impl<'src> TokenStream<'src> {
     {
         while let (index, Some(ch)) = self.peek() {
             match ch {
-                ch if "λ\\*/+().&|!-=".contains(ch) => self.push_symbol(index),
+                ch if "λ\\*/+().&|!-=\r\n".contains(ch) => self.push_symbol(index),
                 ch if ch.is_whitespace() => self.skip_whitespace(),
                 ch if ch.is_alphabetic() => self.push_variable(index),
                 ch if ch.is_numeric() => self.push_number(index),
@@ -153,10 +163,10 @@ impl<'src> TokenStream<'src> {
             }
         }
         if self.errors.is_empty() {
-            Ok(self.tokens)
+            Ok(self.token_vec)
         } else {
             Err(LexerErrorVec {
-                tokens: self.tokens,
+                tokens: self.token_vec,
                 errors: self.errors,
             })
         }
@@ -164,8 +174,15 @@ impl<'src> TokenStream<'src> {
 }
 
 #[derive(Debug)]
-pub struct TokenVec<'t> {
-    pub source: &'t source::Source,
-    pub tokens: Vec<Token<'t>>,
+pub struct TokenVec<'src> {
+    pub source: &'src source::Source,
+    pub tokens: Vec<Token<'src>>,
 }
 
+pub type TokenIter<'src> = std::iter::Peekable<std::slice::Iter<'src, Token<'src>>>;
+
+impl TokenVec<'_> {
+    pub fn iter(&self) -> TokenIter {
+        self.tokens.iter().peekable()
+    }
+}

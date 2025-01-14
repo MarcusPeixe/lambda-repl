@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum TokenType<'src> {
-    Var(&'src str),
+    Ident(&'src str),
     Num(u64),
     Mul,
     Div,
@@ -18,12 +18,14 @@ pub enum TokenType<'src> {
     Dot,
     LPar,
     RPar,
+    Comment(&'src str),
+    Eol,
 }
 
 impl std::fmt::Display for TokenType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenType::Var(name) => write!(f, "Var({name})"),
+            TokenType::Ident(name) => write!(f, "Var({name})"),
             TokenType::Num(num) => write!(f, "Num({num})"),
             TokenType::Mul => write!(f, "Mul"),
             TokenType::Div => write!(f, "Div"),
@@ -39,6 +41,8 @@ impl std::fmt::Display for TokenType<'_> {
             TokenType::Dot => write!(f, "Dot"),
             TokenType::LPar => write!(f, "LPar"),
             TokenType::RPar => write!(f, "RPar"),
+            TokenType::Comment(text) => write!(f, "Comment({text})"),
+            TokenType::Eol => write!(f, "EOL"),
         }
     }
 }

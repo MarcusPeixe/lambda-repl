@@ -58,13 +58,6 @@ fn print_line(
     start: usize,
     end: usize,
 ) -> std::fmt::Result {
-    // let start_offset = tokens.source.lines[line];
-    // let end_offset = *tokens
-    //     .source
-    //     .lines
-    //     .get(line + 1)
-    //     .unwrap_or(&tokens.source.text.len());
-
     let (start_offset, end_offset) = tokens.source.get_line_offset(line);
 
     write!(f, "\x1B[1;34m{:3} |\x1B[m  ", line + 1)?;
@@ -101,7 +94,7 @@ fn print_line(
             let span_end = tokens.tokens[curr_token].span.end;
             if i >= span_start && i < span_end {
                 new_color = match tokens.tokens[curr_token].token_type {
-                    TokenType::Var(_) => ";38;5;153",
+                    TokenType::Ident(_) => ";38;5;153",
                     TokenType::Num(_) => ";38;5;133",
                     TokenType::Mul
                     | TokenType::Div
@@ -114,8 +107,10 @@ fn print_line(
                     | TokenType::Neq
                     | TokenType::Assign
                     | TokenType::LPar
-                    | TokenType::RPar => ";38;5;133",
+                    | TokenType::RPar
+                    | TokenType::Eol => ";38;5;133",
                     TokenType::Lambda | TokenType::Dot => ";1;38;5;215",
+                    TokenType::Comment(_) => ";38;5;244",
                 };
             }
         }
