@@ -1,16 +1,6 @@
 mod lexer;
+mod parser;
 mod source;
-
-enum AST<'a> {
-    Var(&'a str),
-    Num(u64),
-    App(Box<AST<'a>>, Box<AST<'a>>),
-    Mul(Box<AST<'a>>, Box<AST<'a>>),
-    Div(Box<AST<'a>>, Box<AST<'a>>),
-    Add(Box<AST<'a>>, Box<AST<'a>>),
-    Sub(Box<AST<'a>>, Box<AST<'a>>),
-    Abs(&'a str, Box<AST<'a>>),
-}
 
 fn main() {
     let mut args: Vec<String> = std::env::args().collect();
