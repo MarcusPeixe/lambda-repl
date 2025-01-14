@@ -27,10 +27,10 @@ impl Source {
         (line, column)
     }
 
-    pub fn get_line_slice(&self, line: usize) -> &str {
+    pub fn get_line_offset(&self, line: usize) -> (usize, usize) {
         let start = self.lines[line];
         let &end = self.lines.get(line + 1).unwrap_or(&self.text.len());
-        &self.text[start..end]
+        (start, end)
     }
 }
 

@@ -58,12 +58,14 @@ fn print_line(
     start: usize,
     end: usize,
 ) -> std::fmt::Result {
-    let start_offset = tokens.source.lines[line];
-    let end_offset = *tokens
-        .source
-        .lines
-        .get(line + 1)
-        .unwrap_or(&tokens.source.text.len());
+    // let start_offset = tokens.source.lines[line];
+    // let end_offset = *tokens
+    //     .source
+    //     .lines
+    //     .get(line + 1)
+    //     .unwrap_or(&tokens.source.text.len());
+
+    let (start_offset, end_offset) = tokens.source.get_line_offset(line);
 
     write!(f, "\x1B[1;34m{:3} |\x1B[m  ", line + 1)?;
 
