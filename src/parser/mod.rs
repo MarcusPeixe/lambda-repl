@@ -1,4 +1,5 @@
 mod error;
+mod parser;
 
 use crate::lexer;
 
@@ -23,10 +24,16 @@ enum AST<'src> {
     Assign(&'src str, Node<'src>),
 }
 
-type ParserResult<'src> = Result<Node<'src>, ParserError<'src>>;
+type ParserResult<'src> = Result<(Node<'src>, lexer::TokenIter<'src>), ParserError<'src>>;
 
-fn parse_assignment(iter: lexer::TokenIter) {
-
+fn parse_assignment<'src>(mut iter: lexer::TokenIter<'src>) -> ParserResult<'src> {
+    let Some(ident) = iter.next() else {
+        return Err(ParserError::new_end(
+            "expected identifier".to_owned(),
+            unimplemented!(),
+        ));
+    };
+    unimplemented!();
 }
 
 pub fn parse(tokens: &lexer::TokenVec) {
