@@ -47,7 +47,7 @@ impl<'src> TokenStream<'src> {
     }
 
     fn consume_while(&mut self, pred: fn(char) -> bool) -> usize {
-        while let (_index, Some(char)) = self.peek() {
+        while let (_idx, Some(char)) = self.peek() {
             if !pred(char) {
                 break;
             }
@@ -57,7 +57,7 @@ impl<'src> TokenStream<'src> {
     }
 
     fn invalid_token(&mut self, start: usize) {
-        while let (_index, Some(ch)) = self.peek() {
+        while let (_idx, Some(ch)) = self.peek() {
             if ch.is_alphanumeric() || ch.is_whitespace() {
                 break;
             }
