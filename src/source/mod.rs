@@ -1,15 +1,27 @@
 #[derive(Debug)]
 pub struct Source {
-    pub file_name: String,
+    pub file_name: Option<String>,
     pub text: String,
     pub lines: Vec<usize>,
 }
 
 impl Source {
-    pub fn new(file_name: String, text: String) -> Source {
+    pub fn from_file(file_name: String) -> std::io::Result<Source> {
+        // Read source code
+        let text = std::fs::read_to_string(&file_name)?;
+
+        let lines = find_lines(&text);
+        Ok(Source {
+            file_name: Some(file_name),
+            text,
+            lines,
+        })
+    }
+
+    pub fn from_string(text: String) -> Source {
         let lines = find_lines(&text);
         Source {
-            file_name,
+            file_name: None,
             text,
             lines,
         }

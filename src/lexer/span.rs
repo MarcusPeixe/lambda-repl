@@ -27,12 +27,15 @@ impl<'src> Span<'src> {
     }
 
     pub fn get_location_str(&self, source: &source::Source) -> String {
-        let file = &source.file_name;
         let (line, column) = source.get_line_column(self.start);
         let line = line + 1;
         let column = column + 1;
 
-        format!("{file}:{line}:{column}:")
+        if let Some(ref file) = source.file_name {
+            format!("{file}:{line}:{column}:")
+        } else {
+            format!("{line}:{column}:")
+        }
     }
 
     pub fn print<'t>(

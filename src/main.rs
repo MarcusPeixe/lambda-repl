@@ -9,28 +9,25 @@ fn main() {
     // Read command line arguments
     let file_name = args
         .get_mut(1)
-        .expect("Error: expected source file name as first argument");
-
-    let file_name = std::mem::take(file_name);
+        .expect("Error: expected source file name as first argument")
+        .clone();
 
     // Read source code
-    let code = std::fs::read_to_string(&file_name).expect("Error: could not read source file");
-
-    // Construct source object
-    let source = source::Source::new(file_name, code);
+    let source = source::Source::from_file(file_name).expect("Error: could not read source file");
 
     // Tokenize
-    let tokens = lexer::tokenise(&source);
-
-    match tokens {
-        Ok(tokens) => {
-            println!("Tokens:");
-            for token in tokens.tokens {
-                println!("- {token:?}");
-            }
-        }
+    let tokens = match lexer::tokenise(&source) {
+        Ok(tokens) => tokens,
         Err(error) => {
             println!("{error}");
+            return;
         }
     };
+
+    println!("Tokens:");
+    for token in &tokens.tokens {
+        println!("- {token:?}");
+    }
+
+    let _ast = parser::parse(&tokens);
 }

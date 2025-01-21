@@ -5,6 +5,8 @@ pub struct ParserError<'src> {
     span: lexer::Span<'src>,
 }
 
+pub type ParserResult<'src> = Result<ast::Node<'src>, ParserError<'src>>;
+
 impl<'src> ParserError<'src> {
     pub fn print(
         &self,
@@ -22,9 +24,9 @@ impl<'src> ParserError<'src> {
         writeln!(f)
     }
 
-    pub fn new_end(message: String, tokens: &'src lexer::TokenVec) -> Self {
+    pub fn new_end(message: String, tokens: &'src lexer::TokenVec) -> ParserResult<'src> {
         let end = tokens.source.text.len();
         let span = lexer::Span::new(&tokens.source.text, end, end);
-        Self { message, span }
+        Err(Self { message, span })
     }
 }
