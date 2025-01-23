@@ -24,9 +24,21 @@ impl<'src> ParserError<'src> {
         writeln!(f)
     }
 
-    pub fn new_end(message: String, tokens: &'src lexer::TokenVec) -> ParserResult<'src> {
+    pub fn new_end(message: String, tokens: &'src lexer::TokenVec) -> Self {
         let end = tokens.source.text.len();
         let span = lexer::Span::new(&tokens.source.text, end, end);
-        Err(Self { message, span })
+        Self { message, span }
+    }
+
+    pub fn new(message: String, tokens: &'src lexer::TokenVec, start: usize, end: usize) -> Self {
+        let span = lexer::Span::new(&tokens.source.text, start, end);
+        Self { message, span }
+    }
+
+    pub fn expect(self, message: String) -> ParserResult<'src> {
+        Err(ParserError {
+            message,
+            span: self.span,
+        })
     }
 }

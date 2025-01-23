@@ -2,8 +2,8 @@ use super::*;
 
 #[derive(Clone, Copy)]
 pub struct Span<'src> {
-    start: usize,
-    end: usize,
+    pub start: usize,
+    pub end: usize,
     source: std::marker::PhantomData<&'src str>,
 }
 
