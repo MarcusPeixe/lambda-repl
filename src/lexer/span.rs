@@ -43,6 +43,7 @@ impl<'src> Span<'src> {
         f: &mut std::fmt::Formatter<'_>,
         tokens: &'t TokenVec<'t>,
     ) -> std::fmt::Result {
+
         let line_start = tokens.source.get_line(self.start);
         let line_end = tokens.source.get_line(self.end);
 
@@ -63,7 +64,7 @@ fn print_line(
 ) -> std::fmt::Result {
     let (start_offset, end_offset) = tokens.source.get_line_offset(line);
 
-    write!(f, "\x1B[1;34m{:3} |\x1B[m  ", line + 1)?;
+    write!(f, "\x1B[1;34m{:3} |\x1B[m ", line + 1)?;
 
     let mut curr_token = tokens
         .tokens
@@ -81,8 +82,10 @@ fn print_line(
     let mut curr_color = "";
     let slice = &tokens.source.text[start_offset..end_offset].trim_end();
 
-    let mut start_chars = 0;
-    let mut end_chars = slice.len();
+    let slice_len = slice.chars().count();
+
+    let mut start_chars = slice_len;
+    let mut end_chars = slice_len + 1;
 
     for (i_chars, (i, c)) in slice.char_indices().enumerate() {
         let i = i + start_offset;
@@ -137,8 +140,8 @@ fn print_line(
     writeln!(f, "\x1B[m")?;
     writeln!(
         f,
-        "\x1B[1;34m    |\x1B[m  {}\x1B[1;31m{}\x1B[m",
+        "\x1B[1;34m    |\x1B[m {}\x1B[1;31m{}\x1B[m",
         " ".repeat(start_chars),
-        "^".repeat(std::cmp::max(end_chars - start_chars, 1)),
+        "^".repeat(usize::saturating_sub(end_chars, start_chars)),
     )
 }
