@@ -39,7 +39,7 @@ impl<'src> TokenStream<'src> {
 
     fn skip_whitespace(&mut self) {
         while let (_idx, Some(char)) = self.peek() {
-            if !char.is_whitespace() && char != '\n' {
+            if !char.is_whitespace() || char == '\n' {
                 break;
             }
             self.next();
