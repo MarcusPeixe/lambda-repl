@@ -16,4 +16,5 @@ pub enum Ast<'src> {
     Neq(Node<'src>, Node<'src>),
     Abs(&'src str, Node<'src>),
     Assign(&'src str, Node<'src>),
+    Source(Vec<Ast<'src>>),
 }

@@ -23,7 +23,7 @@ fn main() {
     };
 
     // Parse
-    let ast = match parser::parse(&tokens) {
+    let ast = match parser::parse_file(&tokens) {
         Ok(ast) => ast,
         Err(error) => {
             println!("{error}");
@@ -31,8 +31,12 @@ fn main() {
         }
     };
 
-    println!("\nAST:");
-    for node in ast {
-        println!("- {node:?}");
+    // println!("AST: {ast:#?}");
+    match ast {
+        parser::ast::Ast::Source(source) => {
+            for line in source.lines {
+                println!("{line}");
+            }
+        }
     }
 }

@@ -37,26 +37,25 @@ impl<'src> ParserState<'src> {
             Ok(ast) => return Ok(ast),
             Err(err) => err,
         };
-        Err(ParserError::get_longer_of(err1, err2))
+        Err(ParserError::get_longer_of(err1, err2).to_singleton(self.token_vec))
     }
 
-    pub fn parse_file(&mut self) -> Result<Vec<ast::Ast<'src>>, ParserError<'src>> {
+    pub fn parse_file(&mut self) -> ParserResult<'src> {
         let mut asts = Vec::new();
         loop {
             self.skip_newlines(Flags { ignore_newline: true });
             match self.parse_assignment(Flags { ignore_newline: false }) {
                 Ok(ast) => asts.push(*ast),
                 Err(err) => {
-                    // self.errors.push(err);
+                    self.errors.push(err);
+                    self.sync_to_newline();
                     if self.peek().is_none() {
                         break;
-                    } else {
-                        return Err(err);
                     }
                 }
             }
         }
-        Ok(asts)
+        Ok(Box::new(ast::Ast::Source(asts)))
     }
 
     fn peek(&mut self) -> Option<&'src lexer::Token<'src>> {
@@ -164,7 +163,15 @@ impl<'src> ParserState<'src> {
         }
     }
 
-    fn parse_assignment(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn sync_to_newline(&mut self) {
+        while let Some(token) = self.next() {
+            if token.token_type == lexer::TokenType::Eol {
+                break;
+            }
+        }
+    }
+
+    fn parse_assignment(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         let name = self.parse_ident(flags)?;
         self.parse_token(lexer::TokenType::Assign, flags)?;
         let expr = self.parse_abstraction(flags)?;
@@ -172,7 +179,7 @@ impl<'src> ParserState<'src> {
         Ok(Box::new(ast::Ast::Assign(name, expr)))
     }
 
-    fn parse_abstraction(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn parse_abstraction(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         if self.parse_token(lexer::TokenType::Lambda, flags).is_ok() {
             let arg = self.parse_ident(flags)?;
             self.parse_token(lexer::TokenType::Dot, flags)?;
@@ -183,7 +190,7 @@ impl<'src> ParserState<'src> {
         }
     }
 
-    fn parse_comparison(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn parse_comparison(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         let mut expr = self.parse_disjunction(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -202,7 +209,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_disjunction(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn parse_disjunction(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         let mut expr = self.parse_conjunction(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -217,7 +224,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_conjunction(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn parse_conjunction(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         let mut expr = self.parse_sum(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -232,7 +239,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_sum(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn parse_sum(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         let mut expr = self.parse_product(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -251,7 +258,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_product(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn parse_product(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         let mut expr = self.parse_application(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -270,7 +277,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_application(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn parse_application(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         let mut expr = self.parse_unary(flags)?;
         while let Ok(arg) = self.parse_abstraction(flags) {
             expr = Box::new(ast::Ast::App(expr, arg));
@@ -278,7 +285,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_unary(&mut self, flags: Flags) -> ParserResult<'src> {
+    fn parse_unary(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
         self.skip_newlines(flags);
         match self.peek() {
             Some(token) if token.token_type == lexer::TokenType::LPar => {
