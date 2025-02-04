@@ -1,5 +1,6 @@
 pub type Node<'src> = Box<Ast<'src>>;
 
+#[derive(Debug)]
 pub enum Ast<'src> {
     Var(&'src str),
     Num(u64),
