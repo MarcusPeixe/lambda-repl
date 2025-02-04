@@ -24,10 +24,16 @@ fn main() {
         }
     };
 
-    println!("Tokens:");
-    for token in &tokens.tokens {
-        println!("- {token:?}");
-    }
+    let ast = match parser::parse(&tokens) {
+        Ok(ast) => ast,
+        Err(error) => {
+            println!("{error}");
+            return;
+        }
+    };
 
-    let _ast = parser::parse(&tokens);
+    println!("\nAST:");
+    for node in ast {
+        println!("- {node:?}");
+    }
 }
