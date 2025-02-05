@@ -31,12 +31,5 @@ fn main() {
         }
     };
 
-    // println!("AST: {ast:#?}");
-    match ast {
-        parser::ast::Ast::Source(source) => {
-            for line in source.lines {
-                println!("{line}");
-            }
-        }
-    }
+    println!("AST: {ast:#?}");
 }

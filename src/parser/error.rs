@@ -23,14 +23,6 @@ impl<'src> ParserError<'src> {
         writeln!(f)
     }
 
-    pub fn get_longer_of(first: Self, second: Self) -> Self {
-        if first.span.start >= second.span.start {
-            first
-        } else {
-            second
-        }
-    }
-
     pub fn new_end(message: String, tokens: &'src lexer::TokenVec) -> Self {
         let end = tokens.source.text.len();
         let span = lexer::Span::new(&tokens.source.text, end, end);
@@ -40,20 +32,6 @@ impl<'src> ParserError<'src> {
     pub fn new(message: String, tokens: &'src lexer::TokenVec, start: usize, end: usize) -> Self {
         let span = lexer::Span::new(&tokens.source.text, start, end);
         Self { message, span }
-    }
-
-    pub fn expect(self, message: String) -> Result<ast::Node<'src>, ParserError<'src>> {
-        Err(ParserError {
-            message,
-            span: self.span,
-        })
-    }
-
-    pub fn to_singleton(self, tokens: &'src lexer::TokenVec) -> ParserErrorVec<'src> {
-        ParserErrorVec {
-            tokens,
-            errors: vec![self],
-        }
     }
 }
 
@@ -65,11 +43,53 @@ pub struct ParserErrorVec<'src> {
     pub errors: Vec<ParserError<'src>>,
 }
 
+impl<'src> ParserErrorVec<'src> {
+    pub fn new(tokens: &'src lexer::TokenVec) -> Self {
+        Self {
+            tokens,
+            errors: Vec::new(),
+        }
+    }
+
+    pub fn single(
+        message: String,
+        tokens: &'src lexer::TokenVec,
+        start: usize,
+        end: usize,
+    ) -> Self {
+        Self {
+            tokens,
+            errors: vec![ParserError::new(message, tokens, start, end)],
+        }
+    }
+
+    pub fn single_end(message: String, tokens: &'src lexer::TokenVec) -> Self {
+        Self {
+            tokens,
+            errors: vec![ParserError::new_end(message, tokens)],
+        }
+    }
+
+    pub fn get_longer_of(self, other: Self) -> Self {
+        if other.errors.len() > self.errors.len() {
+            other
+        } else if other.errors.len() == self.errors.len()
+            && self.errors.len() > 0
+            && other.errors[0].span.start > self.errors[0].span.start
+        {
+            other
+        } else {
+            self
+        }
+    }
+
+    pub fn combine(&mut self, other: Self) {
+        self.errors.extend(other.errors);
+    }
+}
+
 impl<'src> std::fmt::Display for ParserErrorVec<'src> {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for error in &self.errors {
             error.print(f, self.tokens)?;
         }

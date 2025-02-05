@@ -1,14 +1,20 @@
 // Basic values
 true  = λx.λy.x
-false = λx.λy.y
+false = λx.λy.//y
 
 // Basic operators
 and = (λx.λy.x y false)
-or  = (λx.λy.x true y)
+or  = (λx.λy.x ! && true y)
 
 // Rewriting
 and = (λx.λy.x && y)
 or  = (λx.λy.x || y)
 
-true = (\x1 -> \x2 -> x1)
+true = (\x1 -> \x2 ->. x1)
 number = 123 && 1 // 456 789
+
+test = (
+    a.
+    b
+    c
+)

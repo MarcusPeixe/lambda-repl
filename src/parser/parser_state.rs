@@ -7,9 +7,8 @@ struct Flags {
 
 pub struct ParserState<'src> {
     token_vec: &'src lexer::TokenVec<'src>,
-    pub errors: Vec<ParserError<'src>>,
+    errors: ParserErrorVec<'src>,
     iter: lexer::TokenIter<'src>,
-    stack: Vec<lexer::TokenIter<'src>>,
 }
 
 impl<'src> ParserState<'src> {
@@ -17,51 +16,62 @@ impl<'src> ParserState<'src> {
         let iter = token_vec.iter();
         Self {
             token_vec,
-            errors: Vec::new(),
+            errors: ParserErrorVec::new(token_vec),
             iter,
-            stack: Vec::new(),
         }
     }
 
-    pub fn parse_line(&mut self) -> ParserResult<'src> {
-        self.push();
-        let err1 = match self.parse_assignment(Flags { ignore_newline: false }) {
-            Ok(ast) => {
-                self.discard();
-                return Ok(ast)
-            }
-            Err(err) => err,
-        };
-        self.pop();
-        let err2 = match self.parse_abstraction(Flags { ignore_newline: false }) {
+    pub fn parse_line(mut self) -> ParserResult<'src> {
+        let stored = self.iter.clone();
+        let err1 = match self.parse_assignment(Flags {
+            ignore_newline: false,
+        }) {
             Ok(ast) => return Ok(ast),
             Err(err) => err,
         };
-        Err(ParserError::get_longer_of(err1, err2).to_singleton(self.token_vec))
+        self.iter = stored;
+        let err2 = match self.parse_abstraction(Flags {
+            ignore_newline: false,
+        }) {
+            Ok(ast) => return Ok(ast),
+            Err(err) => err,
+        };
+        Err(ParserErrorVec::get_longer_of(err1, err2))
     }
 
-    pub fn parse_file(&mut self) -> ParserResult<'src> {
+    pub fn parse_file(mut self) -> ParserResult<'src> {
         let mut asts = Vec::new();
         loop {
-            self.skip_newlines(Flags { ignore_newline: true });
-            match self.parse_assignment(Flags { ignore_newline: false }) {
+            self.skip_newlines(Flags {
+                ignore_newline: true,
+            });
+            if self.peek().is_none() {
+                break;
+            }
+            match self.parse_assignment(Flags {
+                ignore_newline: false,
+            }) {
                 Ok(ast) => asts.push(*ast),
                 Err(err) => {
-                    self.errors.push(err);
+                    self.errors.combine(err);
                     self.sync_to_newline();
-                    if self.peek().is_none() {
-                        break;
-                    }
                 }
             }
         }
-        Ok(Box::new(ast::Ast::Source(asts)))
+        if self.errors.errors.is_empty() {
+            Ok(Box::new(ast::Ast::Source(asts)))
+        } else {
+            Err(self.errors)
+        }
     }
 
     fn peek(&mut self) -> Option<&'src lexer::Token<'src>> {
         loop {
             match self.iter.peek().copied() {
-                Some(lexer::Token { token_type: lexer::TokenType::Comment(_), .. }) => {
+                Some(lexer::Token {
+                    token_type: lexer::TokenType::Comment(_),
+                    ..
+                }) => {
                     self.iter.next();
                 }
                 token => return token,
@@ -72,78 +82,79 @@ impl<'src> ParserState<'src> {
     fn next(&mut self) -> Option<&'src lexer::Token<'src>> {
         loop {
             match self.iter.next() {
-                Some(lexer::Token { token_type: lexer::TokenType::Comment(_), .. }) => {}
+                Some(lexer::Token {
+                    token_type: lexer::TokenType::Comment(_),
+                    ..
+                }) => {}
                 token => return token,
             }
         }
     }
 
-    fn push(&mut self) {
-        self.stack.push(self.iter.clone());
-    }
-
-    fn discard(&mut self) {
-        self.stack.pop();
-    }
-
-    fn pop(&mut self) {
-        self.iter = self.stack.pop().expect("Error! Stack underflow");
-    }
-
-    fn parse_token(&mut self, token_type: lexer::TokenType, flags: Flags) -> Result<(), ParserError<'src>> {
+    fn parse_token(
+        &mut self,
+        token_type: lexer::TokenType,
+        flags: Flags,
+    ) -> Result<(), ParserErrorVec<'src>> {
         self.skip_newlines(flags);
         match self.peek() {
             Some(token) if token.token_type == token_type => {
                 self.next();
                 Ok(())
             }
-            Some(token) => Err(ParserError::new(
+            Some(token) => Err(ParserErrorVec::single(
                 format!("expected token {}, found {}", token_type, token.token_type),
                 self.token_vec,
                 token.span.start,
                 token.span.end,
             )),
-            None => Err(ParserError::new_end(
+            None => Err(ParserErrorVec::single_end(
                 format!("expected token {}, found end of input", token_type),
                 self.token_vec,
             )),
         }
     }
 
-    fn parse_ident(&mut self, flags: Flags) -> Result<&'src str, ParserError<'src>> {
+    fn parse_ident(&mut self, flags: Flags) -> Result<&'src str, ParserErrorVec<'src>> {
         self.skip_newlines(flags);
         match self.peek() {
-            Some(&lexer::Token { token_type: lexer::TokenType::Ident(name), .. }) => {
+            Some(&lexer::Token {
+                token_type: lexer::TokenType::Ident(name),
+                ..
+            }) => {
                 self.next();
                 Ok(name)
             }
-            Some(token) => Err(ParserError::new(
+            Some(token) => Err(ParserErrorVec::single(
                 format!("expected identifier, found {}", token.token_type),
                 self.token_vec,
                 token.span.start,
                 token.span.end,
             )),
-            None => Err(ParserError::new_end(
+            None => Err(ParserErrorVec::single_end(
                 "expected identifier, found end of input".into(),
                 self.token_vec,
             )),
         }
     }
 
-    fn parse_number(&mut self, flags: Flags) -> Result<u64, ParserError<'src>> {
+    fn parse_number(&mut self, flags: Flags) -> Result<u64, ParserErrorVec<'src>> {
         self.skip_newlines(flags);
         match self.peek() {
-            Some(&lexer::Token { token_type: lexer::TokenType::Num(num), .. }) => {
+            Some(&lexer::Token {
+                token_type: lexer::TokenType::Num(num),
+                ..
+            }) => {
                 self.next();
                 Ok(num)
             }
-            Some(token) => Err(ParserError::new(
+            Some(token) => Err(ParserErrorVec::single(
                 format!("expected number, found {}", token.token_type),
                 self.token_vec,
                 token.span.start,
                 token.span.end,
             )),
-            None => Err(ParserError::new_end(
+            None => Err(ParserErrorVec::single_end(
                 "expected number, found end of input".into(),
                 self.token_vec,
             )),
@@ -171,15 +182,17 @@ impl<'src> ParserState<'src> {
         }
     }
 
-    fn parse_assignment(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn parse_assignment(&mut self, flags: Flags) -> ParserResult<'src> {
+        self.skip_newlines(Flags {
+            ignore_newline: false,
+        });
         let name = self.parse_ident(flags)?;
         self.parse_token(lexer::TokenType::Assign, flags)?;
         let expr = self.parse_abstraction(flags)?;
-        self.parse_token(lexer::TokenType::Eol, flags)?;
         Ok(Box::new(ast::Ast::Assign(name, expr)))
     }
 
-    fn parse_abstraction(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn parse_abstraction(&mut self, flags: Flags) -> ParserResult<'src> {
         if self.parse_token(lexer::TokenType::Lambda, flags).is_ok() {
             let arg = self.parse_ident(flags)?;
             self.parse_token(lexer::TokenType::Dot, flags)?;
@@ -190,7 +203,7 @@ impl<'src> ParserState<'src> {
         }
     }
 
-    fn parse_comparison(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn parse_comparison(&mut self, flags: Flags) -> ParserResult<'src> {
         let mut expr = self.parse_disjunction(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -209,7 +222,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_disjunction(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn parse_disjunction(&mut self, flags: Flags) -> ParserResult<'src> {
         let mut expr = self.parse_conjunction(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -224,7 +237,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_conjunction(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn parse_conjunction(&mut self, flags: Flags) -> ParserResult<'src> {
         let mut expr = self.parse_sum(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -239,7 +252,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_sum(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn parse_sum(&mut self, flags: Flags) -> ParserResult<'src> {
         let mut expr = self.parse_product(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -258,7 +271,7 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_product(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn parse_product(&mut self, flags: Flags) -> ParserResult<'src> {
         let mut expr = self.parse_application(flags)?;
         loop {
             self.skip_newlines(flags);
@@ -277,20 +290,36 @@ impl<'src> ParserState<'src> {
         Ok(expr)
     }
 
-    fn parse_application(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn parse_application(&mut self, flags: Flags) -> ParserResult<'src> {
         let mut expr = self.parse_unary(flags)?;
-        while let Ok(arg) = self.parse_abstraction(flags) {
-            expr = Box::new(ast::Ast::App(expr, arg));
+        while self.is_unary(flags) {
+            expr = Box::new(ast::Ast::App(expr, self.parse_unary(flags)?));
         }
         Ok(expr)
     }
 
-    fn parse_unary(&mut self, flags: Flags) -> Result<ast::Node<'src>, ParserError<'src>> {
+    fn is_unary(&mut self, flags: Flags) -> bool {
+        self.skip_newlines(flags);
+        match self.peek() {
+            Some(token) => matches!(
+                token.token_type,
+                lexer::TokenType::LPar
+                    | lexer::TokenType::Not
+                    | lexer::TokenType::Ident(_)
+                    | lexer::TokenType::Num(_)
+            ),
+            None => false,
+        }
+    }
+
+    fn parse_unary(&mut self, flags: Flags) -> ParserResult<'src> {
         self.skip_newlines(flags);
         match self.peek() {
             Some(token) if token.token_type == lexer::TokenType::LPar => {
                 self.next();
-                let expr = self.parse_abstraction(Flags { ignore_newline: true })?;
+                let expr = self.parse_abstraction(Flags {
+                    ignore_newline: true,
+                })?;
                 self.parse_token(lexer::TokenType::RPar, flags)?;
                 Ok(expr)
             }
@@ -298,24 +327,24 @@ impl<'src> ParserState<'src> {
                 self.next();
                 Ok(Box::new(ast::Ast::Not(self.parse_unary(flags)?)))
             }
-            Some(lexer::Token { token_type: lexer::TokenType::Ident(_), .. }) => {
-                Ok(Box::new(ast::Ast::Var(self.parse_ident(flags)?)))
-            }
-            Some(lexer::Token { token_type: lexer::TokenType::Num(_), .. }) => {
-                Ok(Box::new(ast::Ast::Num(self.parse_number(flags)?)))
-            }
-            Some(token) => Err(ParserError::new(
+            Some(lexer::Token {
+                token_type: lexer::TokenType::Ident(_),
+                ..
+            }) => Ok(Box::new(ast::Ast::Var(self.parse_ident(flags)?))),
+            Some(lexer::Token {
+                token_type: lexer::TokenType::Num(_),
+                ..
+            }) => Ok(Box::new(ast::Ast::Num(self.parse_number(flags)?))),
+            Some(token) => Err(ParserErrorVec::single(
                 format!("expected expression, found {}", token.token_type),
                 self.token_vec,
                 token.span.start,
                 token.span.end,
             )),
-            None => Err(ParserError::new_end(
+            None => Err(ParserErrorVec::single_end(
                 "expected expression, found end of input".into(),
                 self.token_vec,
             )),
         }
     }
 }
-
-
