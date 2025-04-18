@@ -71,12 +71,11 @@ impl<'src> ParserErrorVec<'src> {
     }
 
     pub fn get_longer_of(self, other: Self) -> Self {
-        if other.errors.len() > self.errors.len() {
-            other
-        } else if other.errors.len() == self.errors.len()
-            && self.errors.len() > 0
-            && other.errors[0].span.start > self.errors[0].span.start
-        {
+        let other_is_longer = other.errors.len() > self.errors.len()
+            || other.errors.len() == self.errors.len()
+                && !self.errors.is_empty()
+                && other.errors[0].span.start > self.errors[0].span.start;
+        if other_is_longer {
             other
         } else {
             self
@@ -88,7 +87,7 @@ impl<'src> ParserErrorVec<'src> {
     }
 }
 
-impl<'src> std::fmt::Display for ParserErrorVec<'src> {
+impl std::fmt::Display for ParserErrorVec<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for error in &self.errors {
             error.print(f, self.tokens)?;

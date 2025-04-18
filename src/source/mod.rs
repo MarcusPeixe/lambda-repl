@@ -29,7 +29,7 @@ impl Source {
 
     // Returns line number/index, for the given offset
     pub fn get_line(&self, offset: usize) -> usize {
-        self.lines.binary_search(&offset).unwrap_or_else(|i| i - 1)
+        self.lines.partition_point(|&line| line <= offset) - 1
     }
 
     pub fn get_line_column(&self, offset: usize) -> (usize, usize) {
@@ -48,11 +48,7 @@ impl Source {
 
 // Returns a vector of indices of line beginnings
 fn find_lines(text: &str) -> Vec<usize> {
-    let mut lines = vec![0];
-    for (i, c) in text.char_indices() {
-        if c == '\n' {
-            lines.push(i + 1);
-        }
-    }
-    lines
+    text.lines()
+        .map(|line| line.as_ptr() as usize - text.as_ptr() as usize)
+        .collect()
 }
